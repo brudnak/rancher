@@ -47,8 +47,11 @@ func GetPodLogs(client *rancher.Client, clusterID string, podName string, namesp
 	}
 
 	defer stream.Close()
-
+	const maxTokenSize = 1024 * 1024 * 1024
 	reader := bufio.NewScanner(stream)
+	buf := make([]byte, maxTokenSize)
+	reader.Buffer(buf, maxTokenSize)
+
 	var logs string
 	for reader.Scan() {
 		logs = logs + fmt.Sprintf("%s\n", reader.Text())
