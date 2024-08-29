@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-const scriptURL = "https://raw.githubusercontent.com/rancher/rancher/main/tests/v2/validation/steve/vai/scripts/script.sh"
+const scriptURL = "https://raw.githubusercontent.com/brudnak/rancher/brudnak-vai-main-jenkins/tests/v2/validation/steve/vai/scripts/script.sh"
 
 type VaiTestSuite struct {
 	suite.Suite
