@@ -3,16 +3,15 @@
 package token
 
 import (
-	"testing"
-
+	"fmt"
 	"github.com/rancher/rancher/tests/v2/actions/kubeapi/tokens"
 	"github.com/rancher/shepherd/clients/rancher"
 	fv3 "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/pkg/session"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"testing"
 )
 
 const (
@@ -24,8 +23,8 @@ const (
 type TokenTestSuite struct {
 	suite.Suite
 	client  *rancher.Client
+	clients []*rancher.Client
 	session *session.Session
-	cluster *management.Cluster
 }
 
 func (t *TokenTestSuite) TearDownSuite() {
@@ -40,23 +39,33 @@ func (t *TokenTestSuite) SetupSuite() {
 	require.NoError(t.T(), err)
 
 	t.client = client
+
+	// Initialize multiple Rancher clients
+	t.clients, err = client.RancherClients()
+	t.clients = append(t.clients, t.client)
+	require.NoError(t.T(), err)
+	require.NotEmpty(t.T(), t.clients)
 }
 
 func (t *TokenTestSuite) TestPatchToken() {
-	tokenToCreate := &fv3.Token{Description: initialTokenDesc}
-	createdToken, err := t.client.Management.Token.Create(tokenToCreate)
-	require.NoError(t.T(), err)
+	for i, client := range t.clients {
+		t.Run(fmt.Sprintf("RancherInstance_%d", i), func() {
+			tokenToCreate := &fv3.Token{Description: initialTokenDesc}
+			createdToken, err := client.Management.Token.Create(tokenToCreate)
+			require.NoError(t.T(), err)
 
-	assert.Equal(t.T(), initialTokenDesc, createdToken.Description)
+			assert.Equal(t.T(), initialTokenDesc, createdToken.Description)
 
-	patchedToken, unstructuredRes, err := tokens.PatchToken(t.client, localClusterID, createdToken.Name, "replace", "/description", updatedTokenDesc)
-	require.NoError(t.T(), err)
+			patchedToken, unstructuredRes, err := tokens.PatchToken(client, localClusterID, createdToken.Name, "replace", "/description", updatedTokenDesc)
+			require.NoError(t.T(), err)
 
-	assert.Equal(t.T(), updatedTokenDesc, patchedToken.Description)
+			assert.Equal(t.T(), updatedTokenDesc, patchedToken.Description)
 
-	uc := unstructuredRes.UnstructuredContent()
-	if val, ok := uc["groupPrincipals"]; ok {
-		assert.NotEmpty(t.T(), val)
+			uc := unstructuredRes.UnstructuredContent()
+			if val, ok := uc["groupPrincipals"]; ok {
+				assert.NotEmpty(t.T(), val)
+			}
+		})
 	}
 }
 
